@@ -1,0 +1,20 @@
+:root {
+  --app-header-h: 56px;
+}
+
+/* 헤더를 화면 상단에 고정 */
+.app-header {
+  position: sticky; /* 실무에서 sticky 선호 (레이아웃 덜 깨짐) */
+  top: 0;
+  z-index: 1030; /* bootstrap navbar 위계에 맞춤 */
+}
+
+/* 고정 헤더 높이만큼 본문 시작 위치 확보 */
+.app-body {
+  padding-top: 0; /* sticky라면 보통 0이어도 괜찮음 */
+}
+
+/* 만약 fixed-top으로 바꾸면 아래처럼 바꿔야 함:
+.app-header { position: fixed; width:100%; }
+.app-body { padding-top: var(--app-header-h); }
+*/

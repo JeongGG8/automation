@@ -1,0 +1,23 @@
+{% extends "layouts/base.html" %}
+
+{% block body %}
+<div class="container-fluid">
+  <div class="row min-vh-100">
+
+      <aside class="col-12 col-lg-2 p-0 bg-white border-end">
+          <div class="p-3 border-bottom fw-semibold">메뉴</div>
+          <div class="list-group list-group-flush">
+              <a class="list-group-item list-group-item-action" href="#">권한 / 직책</a>
+              <a class="list-group-item list-group-item-action" href="#">임원 지정</a>
+              <a class="list-group-item list-group-item-action" href="#">회계</a>
+              <a class="list-group-item list-group-item-action" href="#">유저 정보</a>
+          </div>
+      </aside>
+
+      <main class="col-12 col-lg-10 p-3 p-md-4">
+
+          {% block content %}{% endblock %}
+      </main>
+  </div>
+</div>
+{% endblock %}
