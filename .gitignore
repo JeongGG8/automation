@@ -5,6 +5,9 @@ __pycache__/
 
 # Django
 db.sqlite3
+
+# Test data
+test_data/
 *.log
 media/
 
