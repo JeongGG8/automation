@@ -1,12 +1,40 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>로그인 - Automation</title>
+    <link rel="stylesheet" href="{% static 'bootstrap/css/bootstrap.min.css' %}">
 </head>
-<body>
-    <div class="">
+<body class="bg-light">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100">
+            <div class="col-12 col-sm-8 col-md-5 col-lg-4">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <h4 class="text-center fw-bold mb-4">Automation</h4>
 
+                        {% if error %}
+                        <div class="alert alert-danger py-2">{{ error }}</div>
+                        {% endif %}
+
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="username" class="form-label">아이디</label>
+                                <input type="text" class="form-control" id="username" name="username" required autofocus>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">비밀번호</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">로그인</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    <script src="{% static 'bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 </body>
 </html>
