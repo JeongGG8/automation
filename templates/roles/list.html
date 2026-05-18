@@ -1,0 +1,50 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}권한 목록{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">권한 목록</h5>
+    <a href="{% url 'role_create' %}" class="btn btn-primary btn-sm">+ 권한 추가</a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 60px">#</th>
+                    <th>권한명</th>
+                    <th>설명</th>
+                    <th style="width: 140px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for role in roles %}
+                <tr>
+                    <td class="text-muted">{{ role.id }}</td>
+                    <td>{{ role.name }}</td>
+                    <td class="text-muted">{{ role.description|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'role_edit' role.pk %}" class="btn btn-outline-secondary btn-sm">수정</a>
+                        <form method="post" action="{% url 'role_delete' role.pk %}" class="d-inline"
+                              onsubmit="return confirm('\"{{ role.name }}\" 권한을 삭제하시겠습니까?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger btn-sm">삭제</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">등록된 권한이 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

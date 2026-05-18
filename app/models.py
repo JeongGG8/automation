@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class Menu(models.Model):
@@ -18,6 +19,16 @@ class Role(models.Model):
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=200, blank=True)
     menus = models.ManyToManyField(Menu, through='RoleMenu', blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    created_by = models.ForeignKey(
+        'User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_roles'
+    )
+    updated_at = models.DateTimeField(default=timezone.now)
+    updated_by = models.ForeignKey(
+        'User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='updated_roles'
+    )
 
     def __str__(self):
         return self.name

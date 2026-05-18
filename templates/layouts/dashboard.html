@@ -7,7 +7,7 @@
       <aside class="col-12 col-lg-2 p-0 bg-white border-end">
           <div class="p-3 border-bottom fw-semibold">메뉴</div>
           <div class="list-group list-group-flush">
-              <a class="list-group-item list-group-item-action" href="#">권한 / 직책</a>
+              <a class="list-group-item list-group-item-action {% if request.resolver_match.url_name|slice:':4' == 'role' %}active{% endif %}" href="{% url 'role_list' %}">권한 / 직책</a>
               <a class="list-group-item list-group-item-action" href="#">임원 지정</a>
               <a class="list-group-item list-group-item-action" href="#">회계</a>
               <a class="list-group-item list-group-item-action" href="#">유저 정보</a>
