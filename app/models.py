@@ -4,8 +4,12 @@ from django.utils import timezone
 
 
 class Menu(models.Model):
+    parent = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='children'
+    )
     name = models.CharField(max_length=50)
-    url_name = models.CharField(max_length=100)
+    url_name = models.CharField(max_length=100, blank=True)
 
     def __str__(self):
         return self.name
@@ -19,6 +23,7 @@ class Role(models.Model):
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=200, blank=True)
     menus = models.ManyToManyField(Menu, through='RoleMenu', blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     created_by = models.ForeignKey(
         'User', on_delete=models.SET_NULL, null=True, blank=True,

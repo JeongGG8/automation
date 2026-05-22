@@ -8,24 +8,110 @@
     <a href="{% url 'role_list' %}" class="btn btn-outline-secondary btn-sm">목록으로</a>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-            <div class="mb-3">
-                <label class="form-label fw-semibold">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}
-                <div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>
-                {% endif %}
+<form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+
+        <!-- 좌측: 메뉴 트리 -->
+        <div class="col-12 col-lg-5">
+            <div class="card h-100">
+                <div class="card-header fw-semibold">메뉴 선택</div>
+                <div class="card-body" style="max-height: 480px; overflow-y: auto;">
+                    {% if menu_tree %}
+                        {% for parent in menu_tree %}
+                        <div class="mb-2">
+                            <!-- 상위 메뉴 -->
+                            <div class="form-check">
+                                <input class="form-check-input parent-check" type="checkbox"
+                                       id="menu_{{ parent.id }}"
+                                       name="menus" value="{{ parent.id }}"
+                                       {% if parent.id in checked_menu_ids %}checked{% endif %}>
+                                <label class="form-check-label fw-semibold" for="menu_{{ parent.id }}">
+                                    {{ parent.name }}
+                                </label>
+                            </div>
+                            <!-- 하위 메뉴 -->
+                            {% for child in parent.children.all %}
+                            <div class="form-check ms-4">
+                                <input class="form-check-input child-check" type="checkbox"
+                                       id="menu_{{ child.id }}"
+                                       name="menus" value="{{ child.id }}"
+                                       data-parent="{{ parent.id }}"
+                                       {% if child.id in checked_menu_ids %}checked{% endif %}>
+                                <label class="form-check-label" for="menu_{{ child.id }}">
+                                    {{ child.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small">등록된 메뉴가 없습니다.</p>
+                    {% endif %}
+                </div>
             </div>
-            {% endfor %}
-            <div class="d-flex gap-2">
+        </div>
+
+        <!-- 우측: 권한 정보 -->
+        <div class="col-12 col-lg-7">
+            <div class="card">
+                <div class="card-header fw-semibold">권한 정보</div>
+                <div class="card-body">
+
+                    {% if role %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">권한 코드</label>
+                        <input type="text" class="form-control" value="{{ role.id }}" disabled>
+                    </div>
+                    {% endif %}
+
+                    {% for field in form %}
+                    <div class="mb-3 {% if field.field.widget.input_type == 'checkbox' %}form-check{% endif %}">
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            {{ field }}
+                            <label class="form-check-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% else %}
+                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                        {% endif %}
+                        {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
                 <button type="submit" class="btn btn-primary">{{ action }}</button>
                 <a href="{% url 'role_list' %}" class="btn btn-outline-secondary">취소</a>
             </div>
-        </form>
+        </div>
+
     </div>
-</div>
+</form>
+
+<script>
+    // 상위 메뉴 체크 시 하위 메뉴 전체 선택/해제
+    document.querySelectorAll('.parent-check').forEach(function(parentCb) {
+        parentCb.addEventListener('change', function() {
+            document.querySelectorAll('.child-check[data-parent="' + this.value + '"]')
+                .forEach(function(child) { child.checked = parentCb.checked; });
+        });
+    });
+
+    // 하위 메뉴 전체 해제 시 상위 메뉴도 해제, 하나라도 체크 시 상위 체크
+    document.querySelectorAll('.child-check').forEach(function(childCb) {
+        childCb.addEventListener('change', function() {
+            var parentId = this.dataset.parent;
+            var siblings = document.querySelectorAll('.child-check[data-parent="' + parentId + '"]');
+            var allChecked = Array.from(siblings).every(function(s) { return s.checked; });
+            var anyChecked = Array.from(siblings).some(function(s) { return s.checked; });
+            var parentCb = document.getElementById('menu_' + parentId);
+            parentCb.checked = allChecked;
+            parentCb.indeterminate = anyChecked && !allChecked;
+        });
+    });
+</script>
 {% endblock %}

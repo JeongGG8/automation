@@ -4,8 +4,19 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import ProtectedError
 from django.utils import timezone
 
-from .models import Role
+from .models import Role, Menu, RoleMenu
 from .forms import RoleForm
+
+
+def _get_menu_tree():
+    root_menus = Menu.objects.filter(parent=None).prefetch_related('children')
+    return root_menus
+
+
+def _save_role_menus(role, menu_ids):
+    RoleMenu.objects.filter(role=role).delete()
+    for menu_id in menu_ids:
+        RoleMenu.objects.create(role=role, menu_id=menu_id)
 
 
 def login_view(request):
@@ -34,7 +45,7 @@ def index(request):
 
 @login_required(login_url='login')
 def role_list(request):
-    roles = Role.objects.all().order_by('id')
+    roles = Role.objects.all().order_by('-id')
     return render(request, 'roles/list.html', {'roles': roles})
 
 
@@ -50,10 +61,17 @@ def role_create(request):
             role.updated_at = now
             role.updated_by = request.user
             role.save()
+            menu_ids = request.POST.getlist('menus')
+            _save_role_menus(role, menu_ids)
             return redirect('role_list')
     else:
         form = RoleForm()
-    return render(request, 'roles/form.html', {'form': form, 'action': '추가'})
+    return render(request, 'roles/form.html', {
+        'form': form,
+        'action': '추가',
+        'menu_tree': _get_menu_tree(),
+        'checked_menu_ids': [],
+    })
 
 
 @login_required(login_url='login')
@@ -66,10 +84,19 @@ def role_edit(request, pk):
             role.updated_at = timezone.now()
             role.updated_by = request.user
             role.save()
+            menu_ids = request.POST.getlist('menus')
+            _save_role_menus(role, menu_ids)
             return redirect('role_list')
     else:
         form = RoleForm(instance=role)
-    return render(request, 'roles/form.html', {'form': form, 'action': '수정'})
+    checked_menu_ids = list(RoleMenu.objects.filter(role=role).values_list('menu_id', flat=True))
+    return render(request, 'roles/form.html', {
+        'form': form,
+        'action': '수정',
+        'role': role,
+        'menu_tree': _get_menu_tree(),
+        'checked_menu_ids': checked_menu_ids,
+    })
 
 
 @login_required(login_url='login')
