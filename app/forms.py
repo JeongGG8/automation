@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import Role, User
+from .models import Role, User, Menu
 
 
 class RoleCreateForm(forms.ModelForm):
@@ -69,6 +69,33 @@ class UserEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['role'].empty_label = '권한 없음'
+        self.fields['is_active'].help_text = '활성화 해제 시 해당 계정으로 로그인할 수 없습니다. 계정 삭제 대신 이 옵션을 사용하세요.'
+
+
+class MenuForm(forms.ModelForm):
+    class Meta:
+        model = Menu
+        fields = ['parent', 'name', 'url_name']
+        widgets = {
+            'parent': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '메뉴명 입력'}),
+            'url_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'URL 이름 입력 (선택)'}),
+        }
+        labels = {
+            'parent': '상위 메뉴',
+            'name': '메뉴명',
+            'url_name': 'URL 이름',
+        }
+
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get('instance')
+        super().__init__(*args, **kwargs)
+        qs = Menu.objects.filter(parent=None)
+        if instance and instance.pk:
+            qs = qs.exclude(pk=instance.pk)
+        self.fields['parent'].queryset = qs
+        self.fields['parent'].empty_label = '없음 (상위 메뉴로 등록)'
+        self.fields['parent'].required = False
 
 
 class RoleEditForm(forms.ModelForm):

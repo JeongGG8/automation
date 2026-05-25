@@ -7,15 +7,85 @@
       <aside class="col-12 col-lg-2 p-0 bg-white border-end">
           <div class="p-3 border-bottom fw-semibold">메뉴</div>
           <div class="list-group list-group-flush">
-              <a class="list-group-item list-group-item-action {% if request.resolver_match.url_name|slice:':4' == 'role' %}active{% endif %}" href="{% url 'role_list' %}">권한 / 직책</a>
-              <a class="list-group-item list-group-item-action" href="#">임원 지정</a>
-              <a class="list-group-item list-group-item-action" href="#">회계</a>
-              <a class="list-group-item list-group-item-action {% if request.resolver_match.url_name|slice:':4' == 'user' %}active{% endif %}" href="{% url 'user_list' %}">유저 정보</a>
+              {% for item in sidebar_menus %}
+
+                  {% if item.children %}
+                      {% with is_active_parent=False %}
+                      {% for child in item.children %}
+                          {% if request.resolver_match.url_name == child.url_name %}
+                              {% with is_active_parent=True %}{% endwith %}
+                          {% endif %}
+                      {% endfor %}
+                      {% endwith %}
+
+                      {% comment %}하위 메뉴 중 현재 페이지가 있으면 펼침{% endcomment %}
+                      {% with collapsed=True %}
+                      {% for child in item.children %}{% if request.resolver_match.url_name == child.url_name %}{% with collapsed=False %}{% endwith %}{% endif %}{% endfor %}
+
+                      <button class="list-group-item list-group-item-action bg-light text-muted small fw-semibold py-2 border-0 d-flex justify-content-between align-items-center"
+                              type="button"
+                              data-bs-toggle="collapse"
+                              data-bs-target="#menu-{{ item.menu.pk }}"
+                              aria-expanded="{% for child in item.children %}{% if request.resolver_match.url_name == child.url_name %}true{% endif %}{% endfor %}">
+                          {{ item.menu.name }}
+                          <span class="collapse-arrow">▾</span>
+                      </button>
+                      <div class="collapse {% for child in item.children %}{% if request.resolver_match.url_name == child.url_name %}show{% endif %}{% endfor %}"
+                           id="menu-{{ item.menu.pk }}">
+                          {% for child in item.children %}
+                              {% if child.url_name %}
+                              <a class="list-group-item list-group-item-action ps-4
+                                        {% if request.resolver_match.url_name == child.url_name %}active{% endif %}"
+                                 href="{% url child.url_name %}">
+                                  {{ child.name }}
+                              </a>
+                              {% else %}
+                              <span class="list-group-item ps-4 text-muted">{{ child.name }}</span>
+                              {% endif %}
+                          {% endfor %}
+                      </div>
+                      {% endwith %}
+
+                  {% elif item.menu.url_name %}
+                      <a class="list-group-item list-group-item-action
+                                {% if request.resolver_match.url_name == item.menu.url_name %}active{% endif %}"
+                         href="{% url item.menu.url_name %}">
+                          {{ item.menu.name }}
+                      </a>
+
+                  {% else %}
+                      <div class="list-group-item bg-light text-muted small fw-semibold py-2 border-0">
+                          {{ item.menu.name }}
+                      </div>
+                  {% endif %}
+
+              {% empty %}
+              <div class="list-group-item text-muted small py-3">접근 가능한 메뉴가 없습니다.</div>
+              {% endfor %}
           </div>
+
+          <style>
+              .collapse-arrow { transition: transform 0.2s; display: inline-block; }
+              .collapsed .collapse-arrow { transform: rotate(-90deg); }
+          </style>
+          <script>
+              document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(btn) {
+                  var target = document.querySelector(btn.dataset.bsTarget);
+                  if (!target) return;
+                  target.addEventListener('show.bs.collapse', function() {
+                      btn.classList.remove('collapsed');
+                  });
+                  target.addEventListener('hide.bs.collapse', function() {
+                      btn.classList.add('collapsed');
+                  });
+                  if (!target.classList.contains('show')) {
+                      btn.classList.add('collapsed');
+                  }
+              });
+          </script>
       </aside>
 
       <main class="col-12 col-lg-10 p-3 p-md-4">
-
           {% block content %}{% endblock %}
       </main>
   </div>

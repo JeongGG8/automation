@@ -5,7 +5,7 @@ from django.db.models import ProtectedError
 from django.utils import timezone
 
 from .models import Role, Menu, RoleMenu, User
-from .forms import RoleCreateForm, RoleEditForm, UserCreateForm, UserEditForm
+from .forms import RoleCreateForm, RoleEditForm, UserCreateForm, UserEditForm, MenuForm
 
 
 def _get_menu_tree():
@@ -165,3 +165,56 @@ def user_delete(request, pk):
                 'error': f'"{user.username}" 유저를 삭제할 수 없습니다.',
             })
     return redirect('user_list')
+
+
+def _get_full_menu_tree():
+    return Menu.objects.filter(parent=None).prefetch_related('children').order_by('id')
+
+
+@login_required(login_url='login')
+def menu_list(request):
+    return render(request, 'menus/list.html', {
+        'menu_tree': _get_full_menu_tree(),
+    })
+
+
+@login_required(login_url='login')
+def menu_create(request):
+    if request.method == 'POST':
+        form = MenuForm(request.POST)
+        if form.is_valid():
+            menu = form.save()
+            return redirect('menu_edit', pk=menu.pk)
+    else:
+        form = MenuForm()
+    return render(request, 'menus/list.html', {
+        'menu_tree': _get_full_menu_tree(),
+        'form': form,
+        'action': '추가',
+    })
+
+
+@login_required(login_url='login')
+def menu_edit(request, pk):
+    menu = get_object_or_404(Menu, pk=pk)
+    if request.method == 'POST':
+        form = MenuForm(request.POST, instance=menu)
+        if form.is_valid():
+            form.save()
+            return redirect('menu_edit', pk=menu.pk)
+    else:
+        form = MenuForm(instance=menu)
+    return render(request, 'menus/list.html', {
+        'menu_tree': _get_full_menu_tree(),
+        'form': form,
+        'action': '수정',
+        'selected_menu': menu,
+    })
+
+
+@login_required(login_url='login')
+def menu_delete(request, pk):
+    menu = get_object_or_404(Menu, pk=pk)
+    if request.method == 'POST':
+        menu.delete()
+    return redirect('menu_list')

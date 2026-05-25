@@ -1,0 +1,98 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}메뉴 관리{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">메뉴 관리</h5>
+    <a href="{% url 'menu_create' %}" class="btn btn-primary btn-sm">+ 메뉴 추가</a>
+</div>
+
+<div class="row g-3">
+
+    <!-- 좌측: 메뉴 트리 -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">메뉴 목록</div>
+            <div class="list-group list-group-flush" style="max-height: 520px; overflow-y: auto;">
+                {% for parent in menu_tree %}
+
+                <a href="{% url 'menu_edit' parent.pk %}"
+                   class="list-group-item list-group-item-action fw-semibold
+                          {% if selected_menu and selected_menu.pk == parent.pk %}active{% endif %}">
+                    {{ parent.name }}
+                </a>
+
+                {% for child in parent.children.all %}
+                <a href="{% url 'menu_edit' child.pk %}"
+                   class="list-group-item list-group-item-action ps-4
+                          {% if selected_menu and selected_menu.pk == child.pk %}active{% endif %}">
+                    └ {{ child.name }}
+                </a>
+                {% endfor %}
+
+                {% empty %}
+                <div class="list-group-item text-center text-muted py-4 small">등록된 메뉴가 없습니다.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 우측: 정보/폼 영역 -->
+    <div class="col-12 col-lg-8">
+        {% if form %}
+        <div class="card">
+            <div class="card-header fw-semibold">메뉴 {{ action }}</div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">{{ action }}</button>
+                        <a href="{% url 'menu_list' %}" class="btn btn-outline-secondary">취소</a>
+                    </div>
+                </form>
+
+                {% if selected_menu %}
+                <hr>
+                <form method="post" action="{% url 'menu_delete' selected_menu.pk %}"
+                      onsubmit="return confirmDelete()">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm">삭제</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% else %}
+        <div class="card h-100">
+            <div class="card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 200px;">
+                좌측 메뉴를 선택하거나 추가 버튼을 눌러주세요.
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+function confirmDelete() {
+    {% if selected_menu %}
+    {% if selected_menu.parent == None and selected_menu.children.exists %}
+    return confirm('"{{ selected_menu.name }}" 메뉴를 삭제하면 하위 메뉴도 함께 삭제됩니다. 삭제하시겠습니까?');
+    {% else %}
+    return confirm('"{{ selected_menu.name }}" 메뉴를 삭제하시겠습니까?');
+    {% endif %}
+    {% endif %}
+    return true;
+}
+</script>
+{% endblock %}
