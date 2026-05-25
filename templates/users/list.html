@@ -1,0 +1,71 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}유저 목록{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">유저 목록</h5>
+    <a href="{% url 'user_create' %}" class="btn btn-primary btn-sm">+ 유저 추가</a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" style="table-layout: fixed; width: 100%;">
+            <colgroup>
+                <col style="width: 5%">
+                <col style="width: 15%">
+                <col style="width: 15%">
+                <col style="width: 15%">
+                <col style="width: 8%">
+                <col style="width: 17%">
+                <col style="width: 25%">
+            </colgroup>
+            <thead class="table-light text-center">
+                <tr>
+                    <th>No</th>
+                    <th>아이디</th>
+                    <th>실명</th>
+                    <th>권한</th>
+                    <th>활성화</th>
+                    <th>가입일</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody class="text-center">
+                {% for user in users %}
+                <tr>
+                    <td class="text-muted">{{ forloop.revcounter }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.name|default:"-" }}</td>
+                    <td>{{ user.role.name|default:"-" }}</td>
+                    <td>
+                        {% if user.is_active %}
+                        <span class="badge bg-success">활성</span>
+                        {% else %}
+                        <span class="badge bg-secondary">비활성</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ user.date_joined|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <a href="{% url 'user_edit' user.pk %}" class="btn btn-outline-secondary btn-sm">수정</a>
+                        <form method="post" action="{% url 'user_delete' user.pk %}" class="d-inline"
+                              onsubmit="return confirm('\"{{ user.username }}\" 유저를 삭제하시겠습니까?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger btn-sm">삭제</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">등록된 유저가 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

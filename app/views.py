@@ -4,8 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import ProtectedError
 from django.utils import timezone
 
-from .models import Role, Menu, RoleMenu
-from .forms import RoleForm
+from .models import Role, Menu, RoleMenu, User
+from .forms import RoleCreateForm, RoleEditForm, UserCreateForm, UserEditForm
 
 
 def _get_menu_tree():
@@ -52,7 +52,7 @@ def role_list(request):
 @login_required(login_url='login')
 def role_create(request):
     if request.method == 'POST':
-        form = RoleForm(request.POST)
+        form = RoleCreateForm(request.POST)
         if form.is_valid():
             now = timezone.now()
             role = form.save(commit=False)
@@ -65,7 +65,7 @@ def role_create(request):
             _save_role_menus(role, menu_ids)
             return redirect('role_list')
     else:
-        form = RoleForm()
+        form = RoleCreateForm()
     return render(request, 'roles/form.html', {
         'form': form,
         'action': '추가',
@@ -78,7 +78,7 @@ def role_create(request):
 def role_edit(request, pk):
     role = get_object_or_404(Role, pk=pk)
     if request.method == 'POST':
-        form = RoleForm(request.POST, instance=role)
+        form = RoleEditForm(request.POST, instance=role)
         if form.is_valid():
             role = form.save(commit=False)
             role.updated_at = timezone.now()
@@ -88,7 +88,7 @@ def role_edit(request, pk):
             _save_role_menus(role, menu_ids)
             return redirect('role_list')
     else:
-        form = RoleForm(instance=role)
+        form = RoleEditForm(instance=role)
     checked_menu_ids = list(RoleMenu.objects.filter(role=role).values_list('menu_id', flat=True))
     return render(request, 'roles/form.html', {
         'form': form,
@@ -112,3 +112,56 @@ def role_delete(request, pk):
                 'error': f'"{role.name}" 권한을 사용 중인 유저가 있어 삭제할 수 없습니다.',
             })
     return redirect('role_list')
+
+
+@login_required(login_url='login')
+def user_list(request):
+    users = User.objects.select_related('role').order_by('-date_joined')
+    return render(request, 'users/list.html', {'users': users})
+
+
+@login_required(login_url='login')
+def user_create(request):
+    if request.method == 'POST':
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('user_list')
+    else:
+        form = UserCreateForm()
+    return render(request, 'users/form.html', {
+        'form': form,
+        'action': '추가',
+    })
+
+
+@login_required(login_url='login')
+def user_edit(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    if request.method == 'POST':
+        form = UserEditForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect('user_list')
+    else:
+        form = UserEditForm(instance=user)
+    return render(request, 'users/form.html', {
+        'form': form,
+        'action': '수정',
+        'target_user': user,
+    })
+
+
+@login_required(login_url='login')
+def user_delete(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    if request.method == 'POST':
+        try:
+            user.delete()
+        except ProtectedError:
+            users = User.objects.select_related('role').order_by('-date_joined')
+            return render(request, 'users/list.html', {
+                'users': users,
+                'error': f'"{user.username}" 유저를 삭제할 수 없습니다.',
+            })
+    return redirect('user_list')

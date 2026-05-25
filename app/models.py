@@ -20,6 +20,7 @@ class Menu(models.Model):
 
 
 class Role(models.Model):
+    code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=200, blank=True)
     menus = models.ManyToManyField(Menu, through='RoleMenu', blank=True)

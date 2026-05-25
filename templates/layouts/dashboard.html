@@ -10,7 +10,7 @@
               <a class="list-group-item list-group-item-action {% if request.resolver_match.url_name|slice:':4' == 'role' %}active{% endif %}" href="{% url 'role_list' %}">권한 / 직책</a>
               <a class="list-group-item list-group-item-action" href="#">임원 지정</a>
               <a class="list-group-item list-group-item-action" href="#">회계</a>
-              <a class="list-group-item list-group-item-action" href="#">유저 정보</a>
+              <a class="list-group-item list-group-item-action {% if request.resolver_match.url_name|slice:':4' == 'user' %}active{% endif %}" href="{% url 'user_list' %}">유저 정보</a>
           </div>
       </aside>
 
