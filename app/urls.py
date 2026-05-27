@@ -20,4 +20,6 @@ urlpatterns = [
     path('menus/create/', views.menu_create, name='menu_create'),
     path('menus/<int:pk>/edit/', views.menu_edit, name='menu_edit'),
     path('menus/<int:pk>/delete/', views.menu_delete, name='menu_delete'),
+
+    path('transactions/', views.transaction_list, name='transaction_list'),
 ]

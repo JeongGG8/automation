@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Count, Q
 from django.utils import timezone
 
-from .models import Role, Menu, RoleMenu, User
+from .models import Role, Menu, RoleMenu, User, TransactionFile
 from .forms import RoleCreateForm, RoleEditForm, UserCreateForm, UserEditForm, MenuForm
 
 
@@ -218,3 +218,16 @@ def menu_delete(request, pk):
     if request.method == 'POST':
         menu.delete()
     return redirect('menu_list')
+
+
+@login_required(login_url='login')
+def transaction_list(request):
+    transaction_files = (
+        TransactionFile.objects
+        .select_related('upload')
+        .annotate(transaction_count=Count('transactions', filter=Q(transactions__is_deleted=False)))
+        .order_by('-upload__uploaded_at')
+    )
+    return render(request, 'transactions/list.html', {
+        'transaction_files': transaction_files,
+    })
