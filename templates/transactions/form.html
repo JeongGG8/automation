@@ -1,0 +1,61 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}거래내역 등록{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">거래내역 등록</h5>
+    <a href="{% url 'transaction_list' %}" class="btn btn-outline-secondary btn-sm">목록으로</a>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-header fw-semibold">거래내역 정보</div>
+        <div class="card-body">
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors|join:", " }}</div>
+            {% endif %}
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold" for="{{ form.bank_name.id_for_label }}">{{ form.bank_name.label }}</label>
+                    {{ form.bank_name }}
+                    {% if form.bank_name.errors %}
+                    <div class="text-danger small mt-1">{{ form.bank_name.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold" for="{{ form.year.id_for_label }}">{{ form.year.label }}</label>
+                    {{ form.year }}
+                    {% if form.year.errors %}
+                    <div class="text-danger small mt-1">{{ form.year.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold" for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+                    {{ form.file }}
+                    <div class="text-muted small mt-1">카카오뱅크 거래내역 엑셀 파일(.xlsx)만 지원합니다.</div>
+                    {% if form.file.errors %}
+                    <div class="text-danger small mt-1">{{ form.file.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">등록</button>
+        <a href="{% url 'transaction_list' %}" class="btn btn-outline-secondary">취소</a>
+    </div>
+</form>
+{% endblock %}

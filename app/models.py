@@ -93,6 +93,7 @@ class TransactionFile(models.Model):
     period_start = models.DateField()
     period_end = models.DateField()
     bank_name = models.CharField(max_length=50)
+    is_deleted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

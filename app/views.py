@@ -1,11 +1,16 @@
+import os
+import openpyxl
+from datetime import datetime
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db.models import ProtectedError, Count, Q
 from django.utils import timezone
+from django.conf import settings
 
-from .models import Role, Menu, RoleMenu, User, TransactionFile
-from .forms import RoleCreateForm, RoleEditForm, UserCreateForm, UserEditForm, MenuForm
+from .models import Role, Menu, RoleMenu, User, TransactionFile, UploadedFile, Transaction
+from .forms import RoleCreateForm, RoleEditForm, UserCreateForm, UserEditForm, MenuForm, TransactionUploadForm
 
 
 def _get_menu_tree():
@@ -224,10 +229,103 @@ def menu_delete(request, pk):
 def transaction_list(request):
     transaction_files = (
         TransactionFile.objects
+        .filter(is_deleted=False)
         .select_related('upload')
         .annotate(transaction_count=Count('transactions', filter=Q(transactions__is_deleted=False)))
         .order_by('-upload__uploaded_at')
     )
     return render(request, 'transactions/list.html', {
         'transaction_files': transaction_files,
+    })
+
+
+def _parse_kakao_excel(file_path):
+    wb = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
+    ws = wb.active
+    transactions = []
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i < 11:
+            continue
+        _, date_str, type_str, amount_str, balance_str, trans_type, description, memo, *_ = row
+        if not date_str or not type_str:
+            continue
+        try:
+            transaction_at = datetime.strptime(str(date_str).strip(), '%Y.%m.%d %H:%M:%S')
+            amount = int(str(amount_str).replace(',', '').replace('-', '').strip())
+            balance = int(str(balance_str).replace(',', '').replace('-', '').strip())
+            type_code = 'deposit' if str(type_str).strip() == '입금' else 'withdrawal'
+            transactions.append({
+                'transaction_at': transaction_at,
+                'type': type_code,
+                'amount': amount,
+                'balance': balance,
+                'transaction_type': str(trans_type).strip() if trans_type else '',
+                'description': str(description).strip() if description else '',
+                'memo': str(memo).strip() if memo else '',
+            })
+        except (ValueError, AttributeError):
+            continue
+    wb.close()
+    return transactions
+
+
+@login_required(login_url='login')
+def transaction_create(request):
+    if request.method == 'POST':
+        form = TransactionUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            uploaded_file = request.FILES['file']
+            save_dir = os.path.join(settings.MEDIA_ROOT, 'transactions')
+            os.makedirs(save_dir, exist_ok=True)
+            file_path = os.path.join(save_dir, uploaded_file.name)
+            with open(file_path, 'wb') as f:
+                for chunk in uploaded_file.chunks():
+                    f.write(chunk)
+
+            uploaded = UploadedFile.objects.create(
+                file_name=uploaded_file.name,
+                file_path=file_path,
+                file_type='transaction',
+                uploaded_by=request.user,
+            )
+            rows = _parse_kakao_excel(file_path)
+            if not rows:
+                uploaded.delete()
+                form.add_error('file', '거래내역이 없는 파일입니다.')
+                return render(request, 'transactions/form.html', {'form': form})
+            dates = [r['transaction_at'].date() for r in rows]
+            tf = TransactionFile.objects.create(
+                upload=uploaded,
+                name=form.cleaned_data['name'],
+                year=form.cleaned_data['year'],
+                period_start=min(dates),
+                period_end=max(dates),
+                bank_name=form.cleaned_data['bank_name'],
+            )
+            Transaction.objects.bulk_create([
+                Transaction(transaction_file=tf, **row)
+                for row in rows
+            ])
+            return redirect('transaction_list')
+    else:
+        form = TransactionUploadForm()
+    return render(request, 'transactions/form.html', {'form': form})
+
+
+@login_required(login_url='login')
+def transaction_delete(request, pk):
+    tf = get_object_or_404(TransactionFile, pk=pk)
+    if request.method == 'POST':
+        tf.is_deleted = True
+        tf.save()
+    return redirect('transaction_list')
+
+
+@login_required(login_url='login')
+def transaction_detail(request, pk):
+    tf = get_object_or_404(TransactionFile.objects.select_related('upload'), pk=pk)
+    transactions = tf.transactions.filter(is_deleted=False).order_by('transaction_at')
+    return render(request, 'transactions/detail.html', {
+        'tf': tf,
+        'transactions': transactions,
     })

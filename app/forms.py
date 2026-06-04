@@ -1,6 +1,42 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import Role, User, Menu
+import datetime
+
+
+class TransactionUploadForm(forms.Form):
+    name = forms.CharField(
+        max_length=100,
+        label='거래내역 이름',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예) 2026년 1분기 거래내역'}),
+    )
+    BANK_CHOICES = [
+        ('카카오뱅크', '카카오뱅크'),
+        ('국민은행', '국민은행'),
+        ('농협은행', '농협은행'),
+    ]
+    bank_name = forms.ChoiceField(
+        choices=BANK_CHOICES,
+        initial='카카오뱅크',
+        label='거래 은행',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    year = forms.IntegerField(
+        label='거래 년도',
+        initial=datetime.date.today().year,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+    )
+    file = forms.FileField(
+        label='엑셀 파일',
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.xlsx'}),
+    )
+
+    def clean_file(self):
+        f = self.cleaned_data['file']
+        if not f.name.endswith('.xlsx'):
+            raise forms.ValidationError('xlsx 파일만 업로드할 수 있습니다.')
+        return f
+
 
 
 class RoleCreateForm(forms.ModelForm):
