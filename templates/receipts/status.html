@@ -1,0 +1,254 @@
+{% extends "layouts/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}영수증 관리{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">영수증 관리</h5>
+    <button type="button" class="btn btn-primary btn-sm" id="linkBtn">선택 항목 자료 연결</button>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link active" href="{% url 'receipt_status' %}">증빙 현황</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'receipt_library' %}">자료함</a>
+    </li>
+</ul>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<!-- 집계 요약 -->
+<div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">전체 출금</div>
+                <div class="fs-5 fw-bold">{{ total_count|intcomma }}건</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">증빙 완료</div>
+                <div class="fs-5 fw-bold text-success">{{ linked_count|intcomma }}건</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">증빙 미첨부</div>
+                <div class="fs-5 fw-bold {% if missing_count %}text-danger{% else %}text-success{% endif %}">{{ missing_count|intcomma }}건</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 출금 거래 테이블 -->
+<div class="card">
+    <div class="card-header d-flex align-items-center gap-2">
+        <span class="fw-semibold me-auto">출금 거래</span>
+        <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+            <select name="year" class="form-select form-select-sm" style="width: auto;">
+                <option value="">전체 연도</option>
+                {% for y in years %}
+                <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}년</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="form-select form-select-sm" style="width: auto;">
+                <option value="missing" {% if status == 'missing' %}selected{% endif %}>증빙 미첨부</option>
+                <option value="linked" {% if status == 'linked' %}selected{% endif %}>증빙 완료</option>
+                <option value="all" {% if status == 'all' %}selected{% endif %}>전체</option>
+            </select>
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" style="width: auto;">
+            <span class="text-muted small">~</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" style="width: auto;">
+            <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" style="width: 160px;" placeholder="내용/메모 검색">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">검색</button>
+        </form>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" style="table-layout: fixed; width: 100%;">
+            <colgroup>
+                <col style="width: 3%">
+                <col style="width: 4%">
+                <col style="width: 12%">
+                <col style="width: 10%">
+                <col style="width: 11%">
+                <col style="width: 24%">
+                <col style="width: 14%">
+                <col style="width: 22%">
+            </colgroup>
+            <thead class="table-light text-center">
+                <tr>
+                    <th><input type="checkbox" class="form-check-input" id="checkAll"></th>
+                    <th>No</th>
+                    <th>거래일시</th>
+                    <th>거래금액</th>
+                    <th>거래구분</th>
+                    <th>내용</th>
+                    <th>메모</th>
+                    <th>증빙 자료</th>
+                </tr>
+            </thead>
+            <tbody class="text-center">
+                {% for t in transactions %}
+                <tr>
+                    <td><input type="checkbox" class="form-check-input tx-check" value="{{ t.pk }}"></td>
+                    <td class="text-muted">{{ forloop.counter }}</td>
+                    <td class="text-muted">{{ t.transaction_at|date:"Y-m-d H:i" }}</td>
+                    <td class="text-danger fw-semibold">{{ t.amount|intcomma }}원</td>
+                    <td class="text-muted">{{ t.transaction_type }}</td>
+                    <td class="text-start">{{ t.description }}</td>
+                    <td class="text-muted">{{ t.memo|default:"-" }}</td>
+                    <td class="text-start">
+                        {% for r in t.active_receipts %}
+                        <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 mb-1">
+                            {% if r.upload.is_image %}
+                            <a href="#" class="text-decoration-none preview-link" data-url="{{ r.upload.media_url }}" data-name="{{ r.name }}">🖼 {{ r.name }}</a>
+                            {% else %}
+                            <a href="{{ r.upload.media_url }}" target="_blank" class="text-decoration-none">📄 {{ r.name }}</a>
+                            {% endif %}
+                            <form method="post" action="{% url 'receipt_unlink' r.pk %}" class="d-inline" onsubmit="return confirm('「{{ r.name }}」 연결을 해제하시겠습니까?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="transaction_id" value="{{ t.pk }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="연결 해제">✕</button>
+                            </form>
+                        </span>
+                        {% empty %}
+                        <span class="badge bg-danger">증빙 없음</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">조건에 해당하는 출금 거래가 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 자료 연결 모달 -->
+<div class="modal fade" id="linkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">증빙 자료 연결 (<span id="selCount">0</span>건 선택)</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'receipt_upload' %}" enctype="multipart/form-data" id="linkForm">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="modal-body">
+                    <div id="txIdsBox"></div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="mode" id="modeNew" value="new" checked>
+                        <label class="form-check-label" for="modeNew">새 파일 업로드</label>
+                    </div>
+                    <div id="newFileBox" class="ps-4 mb-3">
+                        <input type="text" name="name" class="form-control form-control-sm mb-2" placeholder="자료 이름 (생략 시 파일명)">
+                        <input type="file" name="file" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" id="fileInput">
+                        <div class="form-text">이미지 또는 PDF, 최대 10MB</div>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="mode" id="modeExisting" value="existing" {% if not available_receipts %}disabled{% endif %}>
+                        <label class="form-check-label" for="modeExisting">기존 자료에 연결</label>
+                    </div>
+                    <div class="ps-4">
+                        <select name="receipt_id" class="form-select form-select-sm" id="receiptSelect" disabled>
+                            <option value="">자료 선택</option>
+                            {% for r in available_receipts %}
+                            <option value="{{ r.pk }}">{{ r.name }} ({{ r.created_at|date:"Y-m-d" }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-primary btn-sm">연결</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 이미지 미리보기 모달 -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="previewTitle"></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="" id="previewImg" class="img-fluid" alt="증빙 미리보기">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const checkAll = document.getElementById('checkAll');
+const checks = () => Array.from(document.querySelectorAll('.tx-check'));
+const selected = () => checks().filter(c => c.checked).map(c => c.value);
+
+checkAll.addEventListener('change', () => checks().forEach(c => { c.checked = checkAll.checked; }));
+
+document.getElementById('linkBtn').addEventListener('click', () => {
+    const ids = selected();
+    if (ids.length === 0) {
+        alert('연결할 출금 거래를 선택해주세요.');
+        return;
+    }
+    document.getElementById('selCount').textContent = ids.length;
+    const box = document.getElementById('txIdsBox');
+    box.innerHTML = '';
+    ids.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'transaction_ids';
+        input.value = id;
+        box.appendChild(input);
+    });
+    new bootstrap.Modal(document.getElementById('linkModal')).show();
+});
+
+function syncMode() {
+    const isNew = document.getElementById('modeNew').checked;
+    document.getElementById('fileInput').disabled = !isNew;
+    document.getElementById('receiptSelect').disabled = isNew;
+}
+document.getElementById('modeNew').addEventListener('change', syncMode);
+document.getElementById('modeExisting').addEventListener('change', syncMode);
+
+document.getElementById('linkForm').addEventListener('submit', (e) => {
+    const isNew = document.getElementById('modeNew').checked;
+    if (isNew && !document.getElementById('fileInput').files.length) {
+        e.preventDefault();
+        alert('업로드할 파일을 선택해주세요.');
+    }
+    if (!isNew && !document.getElementById('receiptSelect').value) {
+        e.preventDefault();
+        alert('연결할 자료를 선택해주세요.');
+    }
+});
+
+document.querySelectorAll('.preview-link').forEach(el => {
+    el.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('previewImg').src = el.dataset.url;
+        document.getElementById('previewTitle').textContent = el.dataset.name;
+        new bootstrap.Modal(document.getElementById('previewModal')).show();
+    });
+});
+</script>
+{% endblock %}

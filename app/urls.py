@@ -25,4 +25,11 @@ urlpatterns = [
     path('transactions/create/', views.transaction_create, name='transaction_create'),
     path('transactions/<int:pk>/', views.transaction_detail, name='transaction_detail'),
     path('transactions/<int:pk>/delete/', views.transaction_delete, name='transaction_delete'),
+    path('transactions/memo/<int:pk>/', views.transaction_memo_update, name='transaction_memo_update'),
+
+    path('receipts/', views.receipt_status, name='receipt_status'),
+    path('receipts/library/', views.receipt_library, name='receipt_library'),
+    path('receipts/upload/', views.receipt_upload, name='receipt_upload'),
+    path('receipts/<int:pk>/unlink/', views.receipt_unlink, name='receipt_unlink'),
+    path('receipts/<int:pk>/delete/', views.receipt_delete, name='receipt_delete'),
 ]

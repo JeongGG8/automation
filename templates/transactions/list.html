@@ -1,4 +1,5 @@
 {% extends "layouts/dashboard.html" %}
+{% load humanize %}
 
 {% block title %}거래내역 목록{% endblock %}
 
@@ -12,41 +13,74 @@
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
 
+{% if not years_data %}
 <div class="card">
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <tbody>
+                <tr>
+                    <td class="text-center text-muted py-4">등록된 거래내역이 없습니다.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% for yd in years_data %}
+<div class="card mb-3">
+    <div class="card-header d-flex align-items-center gap-3">
+        <span class="fw-bold fs-6">{{ yd.ledger.year }}년</span>
+        <span class="text-muted small">{{ yd.ledger.bank_name }}</span>
+        <span class="text-muted small ms-auto">입금 합계</span>
+        <span class="fw-semibold text-success">{{ yd.total_deposit|intcomma }}원</span>
+        <span class="text-muted small">출금 합계</span>
+        <span class="fw-semibold text-danger">{{ yd.total_withdrawal|intcomma }}원</span>
+        <span class="text-muted small">순액</span>
+        <span class="fw-semibold {% if yd.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ yd.net|intcomma }}원
+        </span>
+        {% if yd.missing_receipts %}
+        <a href="{% url 'receipt_status' %}?year={{ yd.ledger.year }}" class="badge bg-danger text-decoration-none">증빙 미첨부 {{ yd.missing_receipts }}건</a>
+        {% endif %}
+        <a href="{% url 'transaction_detail' yd.ledger.pk %}" class="btn btn-outline-secondary btn-sm">상세</a>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0" style="table-layout: fixed; width: 100%;">
             <colgroup>
-                <col style="width: 5%">
+                <col style="width: 4%">
+                <col style="width: 20%">
                 <col style="width: 22%">
-                <col style="width: 13%">
-                <col style="width: 27%">
                 <col style="width: 8%">
-                <col style="width: 15%">
-                <col style="width: 10%">
+                <col style="width: 14%">
+                <col style="width: 14%">
+                <col style="width: 12%">
+                <col style="width: 6%">
             </colgroup>
             <thead class="table-light text-center">
                 <tr>
                     <th>No</th>
                     <th>거래내역 이름</th>
-                    <th>거래 은행</th>
                     <th>거래 기간</th>
                     <th>거래 건수</th>
+                    <th>입금 합계</th>
+                    <th>출금 합계</th>
                     <th>업로드 일시</th>
                     <th>관리</th>
                 </tr>
             </thead>
             <tbody class="text-center">
-                {% for tf in transaction_files %}
+                {% for tu in yd.uploads %}
                 <tr>
-                    <td class="text-muted">{{ forloop.revcounter }}</td>
-                    <td>{{ tf.name }}</td>
-                    <td class="text-muted">{{ tf.bank_name }}</td>
-                    <td class="text-muted">{{ tf.period_start|date:"Y년 m월 d일" }} ~ {{ tf.period_end|date:"Y년 m월 d일" }}</td>
-                    <td>{{ tf.transaction_count }}건</td>
-                    <td class="text-muted">{{ tf.upload.uploaded_at|date:"Y-m-d H:i" }}</td>
+                    <td class="text-muted">{{ forloop.counter }}</td>
+                    <td>{{ tu.name }}</td>
+                    <td class="text-muted">{{ tu.period_start|date:"Y년 m월 d일" }} ~ {{ tu.period_end|date:"Y년 m월 d일" }}</td>
+                    <td>{{ tu.transaction_count }}건</td>
+                    <td class="text-success fw-semibold">{{ tu.upload_deposit|default:0|intcomma }}원</td>
+                    <td class="text-danger fw-semibold">{{ tu.upload_withdrawal|default:0|intcomma }}원</td>
+                    <td class="text-muted">{{ tu.upload.uploaded_at|date:"Y-m-d H:i" }}</td>
                     <td>
-                        <a href="{% url 'transaction_detail' tf.pk %}" class="btn btn-outline-secondary btn-sm">상세</a>
-                        <form method="post" action="{% url 'transaction_delete' tf.pk %}" class="d-inline" onsubmit="return confirm('「{{ tf.name }}」 거래내역을 삭제하시겠습니까?');">
+                        <form method="post" action="{% url 'transaction_delete' tu.pk %}" class="d-inline" onsubmit="return confirm('「{{ tu.name }}」 업로드와 해당 업로드로 추가된 거래를 삭제하시겠습니까?');">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-outline-danger btn-sm">삭제</button>
                         </form>
@@ -54,11 +88,12 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">등록된 거래내역이 없습니다.</td>
+                    <td colspan="8" class="text-center text-muted py-4">업로드된 파일이 없습니다.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+{% endfor %}
 {% endblock %}

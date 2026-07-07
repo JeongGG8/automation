@@ -1,28 +1,35 @@
 {% extends "layouts/dashboard.html" %}
+{% load humanize %}
 
 {% block title %}거래내역 상세{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0">{{ tf.name }}</h5>
+    <h5 class="mb-0">{{ ledger.year }}년 거래내역</h5>
     <a href="{% url 'transaction_list' %}" class="btn btn-outline-secondary btn-sm">목록으로</a>
 </div>
 
-<!-- 거래내역 파일 정보 -->
+<!-- 거래내역 원장 정보 -->
 <div class="card mb-3">
     <div class="card-body">
         <div class="row g-2 text-center">
             <div class="col-6 col-md-3">
                 <div class="text-muted small">거래 은행</div>
-                <div class="fw-semibold">{{ tf.bank_name }}</div>
+                <div class="fw-semibold">{{ ledger.bank_name }}</div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="text-muted small">거래 년도</div>
-                <div class="fw-semibold">{{ tf.year }}년</div>
+                <div class="fw-semibold">{{ ledger.year }}년</div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="text-muted small">거래 기간</div>
-                <div class="fw-semibold">{{ tf.period_start|date:"Y년 m월 d일" }} ~ {{ tf.period_end|date:"Y년 m월 d일" }}</div>
+                <div class="fw-semibold">
+                    {% if period_start %}
+                    {{ period_start|date:"Y년 m월 d일" }} ~ {{ period_end|date:"Y년 m월 d일" }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="text-muted small">거래 건수</div>
@@ -32,19 +39,74 @@
     </div>
 </div>
 
+<!-- 집계 요약 -->
+<div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">입금 총액</div>
+                <div class="fs-5 fw-bold text-success">{{ total_deposit|intcomma }}원</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">출금 총액</div>
+                <div class="fs-5 fw-bold text-danger">{{ total_withdrawal|intcomma }}원</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">잔액</div>
+                {% if is_filtered %}
+                <div class="fs-5 fw-bold {% if net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ net|intcomma }}원
+                </div>
+                {% else %}
+                <div class="fs-5 fw-bold">{{ last_balance|intcomma }}원</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 거래내역 테이블 -->
 <div class="card">
+    <div class="card-header d-flex align-items-center gap-2">
+        <span class="fw-semibold me-auto">거래내역</span>
+        <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+            <select name="type" class="form-select form-select-sm" style="width: auto;">
+                <option value="" {% if not type_filter %}selected{% endif %}>전체</option>
+                <option value="withdrawal" {% if type_filter == 'withdrawal' %}selected{% endif %}>출금</option>
+                <option value="deposit" {% if type_filter == 'deposit' %}selected{% endif %}>입금</option>
+            </select>
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" style="width: auto;">
+            <span class="text-muted small">~</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" style="width: auto;">
+            <select name="search_field" class="form-select form-select-sm" style="width: auto;">
+                <option value="description" {% if search_field == 'description' %}selected{% endif %}>내용</option>
+                <option value="memo" {% if search_field == 'memo' %}selected{% endif %}>메모</option>
+                <option value="transaction_type" {% if search_field == 'transaction_type' %}selected{% endif %}>거래구분</option>
+            </select>
+            <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" style="width: 160px;" placeholder="검색어 입력">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">검색</button>
+        </form>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0" style="table-layout: fixed; width: 100%;">
             <colgroup>
-                <col style="width: 5%">
-                <col style="width: 15%">
-                <col style="width: 7%">
-                <col style="width: 11%">
-                <col style="width: 11%">
+                <col style="width: 4%">
+                <col style="width: 14%">
+                <col style="width: 6%">
+                <col style="width: 10%">
+                <col style="width: 10%">
+                <col style="width: 12%">
+                <col style="width: 23%">
                 <col style="width: 13%">
-                <col style="width: 25%">
-                <col style="width: 13%">
+                <col style="width: 8%">
             </colgroup>
             <thead class="table-light text-center">
                 <tr>
@@ -56,6 +118,7 @@
                     <th>거래구분</th>
                     <th>내용</th>
                     <th>메모</th>
+                    <th>증빙</th>
                 </tr>
             </thead>
             <tbody class="text-center">
@@ -71,20 +134,95 @@
                         {% endif %}
                     </td>
                     <td class="{% if t.type == 'deposit' %}text-success{% else %}text-danger{% endif %} fw-semibold">
-                        {{ t.amount|floatformat:0 }}원
+                        {{ t.amount|intcomma }}원
                     </td>
-                    <td>{{ t.balance|floatformat:0 }}원</td>
+                    <td>{{ t.balance|intcomma }}원</td>
                     <td class="text-muted">{{ t.transaction_type }}</td>
                     <td>{{ t.description }}</td>
-                    <td class="text-muted">{{ t.memo|default:"-" }}</td>
+                    <td class="text-muted">
+                        <span data-memo-pk="{{ t.pk }}">{{ t.memo|default:"-" }}</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-secondary"
+                            data-bs-toggle="modal" data-bs-target="#memoModal"
+                            data-pk="{{ t.pk }}" data-memo="{{ t.memo }}">
+                            ✏️
+                        </button>
+                    </td>
+                    <td>
+                        {% if t.type == 'withdrawal' %}
+                            {% if t.active_receipts %}
+                            <span class="badge bg-success">{{ t.active_receipts|length }}건</span>
+                            {% else %}
+                            <span class="badge bg-danger">없음</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">거래내역이 없습니다.</td>
+                    <td colspan="9" class="text-center text-muted py-4">거래내역이 없습니다.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- 메모 수정 모달 -->
+<div class="modal fade" id="memoModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">메모 수정</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="memoForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <textarea name="memo" id="memoInput" class="form-control" rows="3" placeholder="메모 입력"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-primary btn-sm">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPk = null;
+
+document.getElementById('memoModal').addEventListener('show.bs.modal', function (e) {
+    const btn = e.relatedTarget;
+    currentPk = btn.getAttribute('data-pk');
+    const memo = btn.getAttribute('data-memo');
+    document.getElementById('memoInput').value = memo === 'None' ? '' : memo;
+});
+
+document.getElementById('memoForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const memo = document.getElementById('memoInput').value;
+    const url = "{% url 'transaction_memo_update' 0 %}".replace('/0/', '/' + currentPk + '/');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'memo=' + encodeURIComponent(memo),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.ok) {
+            const span = document.querySelector('[data-memo-pk="' + currentPk + '"]');
+            span.textContent = data.memo || '-';
+            const btn = document.querySelector('[data-pk="' + currentPk + '"]');
+            btn.setAttribute('data-memo', data.memo || '');
+            bootstrap.Modal.getInstance(document.getElementById('memoModal')).hide();
+        }
+    });
+});
+</script>
+
 {% endblock %}

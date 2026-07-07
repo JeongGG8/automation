@@ -1,3 +1,6 @@
+import os
+
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
@@ -64,8 +67,11 @@ class UploadedFile(models.Model):
     FILE_TYPE_CHOICES = [
         ('transaction', '거래내역'),
         ('secretary', '서기파일'),
+        ('receipt', '영수증'),
         ('other', '기타'),
     ]
+
+    IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.gif', '.webp')
 
     file_name = models.CharField(max_length=255)
     file_path = models.CharField(max_length=500)
@@ -78,29 +84,54 @@ class UploadedFile(models.Model):
     def __str__(self):
         return self.file_name
 
+    @property
+    def media_url(self):
+        rel = os.path.relpath(self.file_path, settings.MEDIA_ROOT)
+        return settings.MEDIA_URL + rel.replace('\\', '/')
+
+    @property
+    def is_image(self):
+        return os.path.splitext(self.file_name)[1].lower() in self.IMAGE_EXTS
+
     class Meta:
         verbose_name = '업로드 파일'
         verbose_name_plural = '업로드 파일 목록'
 
 
-class TransactionFile(models.Model):
+class TransactionLedger(models.Model):
+    year = models.PositiveIntegerField(unique=True)
+    bank_name = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.year}년 거래내역'
+
+    class Meta:
+        verbose_name = '거래내역 원장'
+        verbose_name_plural = '거래내역 원장 목록'
+        ordering = ['-year']
+
+
+class TransactionUpload(models.Model):
+    ledger = models.ForeignKey(
+        TransactionLedger, on_delete=models.CASCADE,
+        related_name='uploads'
+    )
     upload = models.OneToOneField(
         UploadedFile, on_delete=models.CASCADE,
-        related_name='transaction_file'
+        related_name='transaction_upload'
     )
     name = models.CharField(max_length=100)
-    year = models.PositiveIntegerField()
     period_start = models.DateField()
     period_end = models.DateField()
-    bank_name = models.CharField(max_length=50)
     is_deleted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
 
     class Meta:
-        verbose_name = '거래내역 파일'
-        verbose_name_plural = '거래내역 파일 목록'
+        verbose_name = '거래내역 업로드'
+        verbose_name_plural = '거래내역 업로드 목록'
 
 
 class Transaction(models.Model):
@@ -109,8 +140,13 @@ class Transaction(models.Model):
         ('withdrawal', '출금'),
     ]
 
-    transaction_file = models.ForeignKey(
-        TransactionFile, on_delete=models.CASCADE,
+    ledger = models.ForeignKey(
+        TransactionLedger, on_delete=models.CASCADE,
+        related_name='transactions'
+    )
+    source_upload = models.ForeignKey(
+        TransactionUpload, on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name='transactions'
     )
     transaction_at = models.DateTimeField()
@@ -130,3 +166,24 @@ class Transaction(models.Model):
         verbose_name = '거래내역'
         verbose_name_plural = '거래내역 목록'
         ordering = ['-transaction_at']
+
+
+class Receipt(models.Model):
+    upload = models.OneToOneField(
+        UploadedFile, on_delete=models.CASCADE,
+        related_name='receipt'
+    )
+    name = models.CharField(max_length=100)
+    transactions = models.ManyToManyField(
+        Transaction, related_name='receipts', blank=True
+    )
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = '증빙 자료'
+        verbose_name_plural = '증빙 자료 목록'
+        ordering = ['-created_at']
